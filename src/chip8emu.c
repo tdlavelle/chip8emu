@@ -48,37 +48,58 @@ void disassemble(char* rom_in, char* file_out)
     {
         unsigned short inst = (((unsigned short)ram[pc]) << 8) | ((unsigned short)ram[++pc]);
 
-        switch (inst & 0xF000)
+        unsigned short opcode = (inst&0xF000)>>12;
+        unsigned short regX = (inst&0x0F00)>>8;
+        unsigned short regY = (inst&0x00F0)>>4;
+        unsigned short valN = (inst&0x000F);
+        unsigned short valNN = (inst&0x00FF);
+        unsigned short valNNN = (inst&0x0FFF);
+
+        printf("%4x [%04x]: ", (pc/2), inst);
+        switch (opcode)
         {
-            case 0x0000:
-                switch (inst)
+            case 0x0:
+                switch (valNN)
                 {
-                    case 0x00E0:
-                        printf("%d: CLS\n", (pc/2));
+                    case 0xE0:
+                        printf("CLS");
                         break;
 
-                    case 0x00EE:
-                        printf("%d: RET\n", (pc/2));
+                    case 0xEE:
+                        printf("RET");
                         break;
 
                     default: // 0x0nnn
-                        printf("%d: SYS %x\n", (pc/2), (inst&0xFFF));
+                        printf("SYS %03x", valNNN);
                         break;
                 }
                 break;
-	    case 0x1000:
-                printf("%d: JP %x\n", (pc/2), (inst&0xFFF));
+            case 0x1:
+                printf("JP %03x", valNNN);
                 break;
-            case 0x2000:
-                printf("%d: CALL %x\n", (pc/2), (inst&0xFFF));
+            case 0x2:
+                printf("CALL %03x", valNNN);
                 break;
-
-
-	    
+            case 0x3:
+                printf("SE V%x, %02x", regX, valNN);
+                break;
+            case 0x4:
+                printf("SNE V%x, %02x", regX, valNN);
+                break;
+            case 0x5:
+                printf("SE V%x, V%x", regX, regY);
+                break;
+            case 0x6:
+                printf("LD V%x, %02x", regX, valNN);
+                break;
+            case 0x7:
+                printf("ADD V%x, %02x", regX, valNN);
+                break;
             default:
-                printf("%d: %hx\n", (pc/2), inst);
+                printf("not supported");
                 break;
         }
+        printf("\n");
     }
 }
 
