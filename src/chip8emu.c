@@ -2,6 +2,8 @@
 #include <string.h>
 
 #define MEM_SIZE 4096
+long int loadRom(char* rom_in, unsigned char* ram_out);
+void disassemble(char* rom_in, char* file_out);
 
 void main(int argc, char**argv)
 {
@@ -37,10 +39,12 @@ void disassemble(char* rom_in, char* file_out)
     {
         ram[i] = 0;
     }	
-    loadRom(rom_in, ram); 
+    
+    long int rom_size = 0;
+    rom_size = loadRom(rom_in, ram); 
     // fetch/decode/execute
 
-    for (int pc = 0; pc < 10; pc++)
+    for (int pc = 0; pc < rom_size; pc++)
     {
         unsigned short inst = (((unsigned short)ram[pc]) << 8) | ((unsigned short)ram[++pc]);
 
@@ -62,6 +66,15 @@ void disassemble(char* rom_in, char* file_out)
                         break;
                 }
                 break;
+	    case 0x1000:
+                printf("%d: JP %x\n", (pc/2), (inst&0xFFF));
+                break;
+            case 0x2000:
+                printf("%d: CALL %x\n", (pc/2), (inst&0xFFF));
+                break;
+
+
+	    
             default:
                 printf("%d: %hx\n", (pc/2), inst);
                 break;
@@ -69,7 +82,7 @@ void disassemble(char* rom_in, char* file_out)
     }
 }
 
-void loadRom(char* rom_in, unsigned char* ram_out)
+long int loadRom(char* rom_in, unsigned char* ram_out)
 {
     // open file
     FILE *romPtr = fopen(rom_in, "rb");
@@ -78,12 +91,25 @@ void loadRom(char* rom_in, unsigned char* ram_out)
         printf("invalid file: %s\n", rom_in);
     }
 
+    // determine ROM size
+    long int rom_size = 0;
+    fseek(romPtr, 0, SEEK_END);
+    rom_size = ftell(romPtr);
+    rewind(romPtr);
+    if (rom_size > MEM_SIZE)
+    {
+	    printf("ROM is larger than RAM, only reading first %d bytes", MEM_SIZE);
+	    rom_size = MEM_SIZE;
+    }
+
     //read in
-    for (int i = 0; i < MEM_SIZE; i++)
+    for (int i = 0; i < rom_size; i++)
     {
         fread(&ram_out[i], sizeof(unsigned char), 1, romPtr);
-        printf("%x: %x\n", i, ram_out[i]);
+        //printf("%x: %x\n", i, ram_out[i]);
     }
 
     fclose(romPtr);
+
+    return rom_size;
 }
