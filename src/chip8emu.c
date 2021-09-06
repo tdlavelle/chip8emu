@@ -7,6 +7,7 @@
 
 long int loadRom(char* rom_in, unsigned char* ram_out, long int start_addr, long int max_size);
 void execute(char* rom_in, int disFlag);
+void initializeFont(unsigned char* ram_out);
 
 void main(int argc, char**argv)
 {
@@ -30,6 +31,17 @@ void main(int argc, char**argv)
 
 void execute(char* rom_in, int disFlag)
 {
+    // initialize registers
+    unsigned char regXY[16];
+    memset(regXY, 0, sizeof(regXY));
+    unsigned short regI = 0;
+    unsigned short pc = 0;
+    unsigned char delayTimer = 0;
+    unsigned char soundTimer = 0;
+    unsigned short stack[16];
+    memset(stack, 0, sizeof(stack));
+    unsigned short stackPointer = 0;
+    
     // initialize display
     char display[64][32];
     memset(display, 1, sizeof(display));
@@ -43,8 +55,11 @@ void execute(char* rom_in, int disFlag)
     long int rom_size = 0;
     rom_size = loadRom(rom_in, ram, START_ADDR, MEM_SIZE); 
     
+    // initialize font
+    initializeFont(ram);
+
     // fetch/decode/execute
-    for (int pc = START_ADDR; pc < rom_size+START_ADDR; pc=pc+2)
+    for (pc = START_ADDR; pc < rom_size+START_ADDR; pc=pc+2)
     {
         unsigned short inst = (((unsigned short)ram[pc]) << 8) | ((unsigned short)ram[pc+1]);
 
@@ -369,4 +384,35 @@ long int loadRom(char* rom_in, unsigned char* ram_out, long int start_addr, long
     fclose(romPtr);
 
     return rom_size;
+}
+
+void initializeFont(unsigned char* ram_out)
+{
+    unsigned char font[16][5] = {
+        {0xF0, 0x90, 0x90, 0x90, 0xF0}, // 0
+        {0x20, 0x60, 0x20, 0x20, 0x70}, // 1
+        {0xF0, 0x10, 0xF0, 0x80, 0xF0}, // 2
+        {0xF0, 0x10, 0xF0, 0x10, 0xF0}, // 3
+        {0x90, 0x90, 0xF0, 0x10, 0x10}, // 4
+        {0xF0, 0x80, 0xF0, 0x10, 0xF0}, // 5
+        {0xF0, 0x80, 0xF0, 0x90, 0xF0}, // 6
+        {0xF0, 0x10, 0x20, 0x40, 0x40}, // 7
+        {0xF0, 0x90, 0xF0, 0x90, 0xF0}, // 8
+        {0xF0, 0x90, 0xF0, 0x10, 0xF0}, // 9
+        {0xF0, 0x90, 0xF0, 0x90, 0x90}, // A
+        {0xE0, 0x90, 0xE0, 0x90, 0xE0}, // B
+        {0xF0, 0x80, 0x80, 0x80, 0xF0}, // C
+        {0xE0, 0x90, 0x90, 0x90, 0xE0}, // D
+        {0xF0, 0x80, 0xF0, 0x80, 0xF0}, // E
+        {0xF0, 0x80, 0xF0, 0x80, 0x80}  // F
+    };
+    // font from 0x50 to 0x9F
+    unsigned short ram_index = 0x50;
+    for (int i = 0; i < 16; i++)
+    {
+        for (int j = 0; j < 5; j++)
+        {
+            ram_out[ram_index++] = font[i][j];
+        }
+    }    
 }
