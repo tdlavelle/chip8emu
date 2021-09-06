@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <ncurses.h>
 
 #define MEM_SIZE 4096
 #define START_ADDR 0x200
@@ -29,10 +30,14 @@ void main(int argc, char**argv)
 
 void execute(char* rom_in, int disFlag)
 {
+    // initialize display
+    char display[64][32];
+    memset(display, 1, sizeof(display));
+    if (!disFlag) initscr();
+
     // initialize ram
     unsigned char ram[MEM_SIZE];
-    for (int i = 0; i < MEM_SIZE; i++)
-        ram[i] = 0;	
+    memset(ram, 0, MEM_SIZE);
     
     // load rom
     long int rom_size = 0;
@@ -207,6 +212,37 @@ void execute(char* rom_in, int disFlag)
                 if (disFlag) printf("DRW V%x, V%x, %x", regX, regY, valN);
                 else
                 {
+                    // get x value from reg[regX] % 64
+                    // get y value from reg[regY] % 32
+                    // reg[VF]=0
+                    // for i in valN rows
+                    //     get mem[reg[I]+i] byte
+                    //         for bit in byte
+                    //             if x > MAX_X break;
+                    //             if bit == 1 && pixel(x,y) == 1
+                    //                 pixel(x,y) = 0
+                    //                 reg[VF] = 1
+                    //             else if bit == 1 && pixel(x,y) == 0
+                    //                 pixel(x,y) = 1
+                    //             x++;
+                    //             if x > MAX_X break;
+                    //         y++
+                    //         if y > MAX_Y break;
+                    //
+                    clear();
+                    for (short row=0; row < 32; row++)
+                    {
+                        for (short col=0; col < 64; col++)
+                        {
+                            if (display[col][row])
+                                mvaddch(row, col, '#');
+                                //printf("#");
+                        }
+                        //printf("\n");
+                    }
+                    refresh();
+                    napms(500);
+                    memset(display, 0, sizeof(display));
                 }
                 break;
             case 0xE:
@@ -300,7 +336,9 @@ void execute(char* rom_in, int disFlag)
         }
         if (disFlag) printf("\n");
     }
+    endwin();
 }
+
 
 long int loadRom(char* rom_in, unsigned char* ram_out, long int start_addr, long int max_size)
 {
