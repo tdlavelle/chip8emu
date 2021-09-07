@@ -45,6 +45,8 @@ void execute(char* rom_in, int disFlag)
     memset(stack, 0, sizeof(stack));
     unsigned short stackPointer = 0;
     
+    unsigned short ticks = 0; // use for timer ticks
+
     // initialize display
     char display[64][32];
     memset(display, 1, sizeof(display));
@@ -280,6 +282,8 @@ void execute(char* rom_in, int disFlag)
                 if (disFlag) printf("DRW V%x, V%x, %x", regX, regY, valN);
                 else
                 {
+                    //timeout(-1);
+                    //getch();
                     // get x value from reg[regX] % 64
                     unsigned char x = regXY[regX] % 64;
                     // get y value from reg[regY] % 32
@@ -304,11 +308,13 @@ void execute(char* rom_in, int disFlag)
                                 display[x][y] = 1;
                             }
                             x++;
-                            if (x > 64) break;
+                            x = x % 64;
+                            //if (x > 64) break;
                         }
                         x = regXY[regX] % 64;
                         y++;
-                        if (y > 32) break;
+                        y = y % 32;
+                        //if (y > 32) break;
                     }
                     clear();
                     for (short row=0; row < 32; row++)
@@ -320,6 +326,8 @@ void execute(char* rom_in, int disFlag)
                         }
                     }
                     refresh();
+                    //timeout(-1);
+                    //getch();
                 }
                 break;
             case 0xE:
@@ -334,7 +342,6 @@ void execute(char* rom_in, int disFlag)
                             int c = getch();
                             // map to hexadecimal keypad
                             unsigned char hdkey = convertKey(c);
-                            
                             // compare reg[vx] to hexadecimal keypad value
                             if (hdkey != 0xff)
                             {
@@ -352,7 +359,6 @@ void execute(char* rom_in, int disFlag)
                             int c = getch();
                             //map to hexadecimal keypad
                             unsigned char hdkey = convertKey(c);
-
                             // compare reg[vx] to keypad
                             if (regXY[regX] != hdkey)
                                 pc += 2;
@@ -460,9 +466,24 @@ void execute(char* rom_in, int disFlag)
         else
         {
             // wait to emulate processing speed
-            napms(2);
-            //getch();
-            //printf("\n");
+            napms(2); // roughly 500Hz
+            
+            // update timers
+            if (ticks == 7) // roughly 60Hz (8 ticks)
+            {
+                if (delayTimer > 0)
+                    delayTimer--;
+                if (soundTimer > 0)
+                {
+                    beep();
+                    soundTimer--;
+                }
+                ticks = 0;
+            }
+            else
+            {
+                ticks++;
+            }
         }
     }
     endwin();
