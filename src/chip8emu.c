@@ -10,6 +10,7 @@
 long int loadRom(char* rom_in, unsigned char* ram_out, long int start_addr, long int max_size);
 void execute(char* rom_in, int disFlag);
 void initializeFont(unsigned char* ram_out);
+unsigned char convertKey(int keyIn);
 
 void main(int argc, char**argv)
 {
@@ -49,6 +50,7 @@ void execute(char* rom_in, int disFlag)
     memset(display, 1, sizeof(display));
     if (!disFlag) initscr();
     if (!disFlag) curs_set(0);
+    if (!disFlag) noecho();
 
     // initialize ram
     unsigned char ram[MEM_SIZE];
@@ -327,19 +329,37 @@ void execute(char* rom_in, int disFlag)
                         if (disFlag) printf("SKP V%x", regX);
                         else
                         {
+                            // check what key is pressed
+                            timeout(0);
+                            int c = getch();
+                            // map to hexadecimal keypad
+                            unsigned char hdkey = convertKey(c);
+                            
+                            // compare reg[vx] to hexadecimal keypad value
+                            if (hdkey != 0xff)
+                            {
+                                if (regXY[regX] == hdkey)
+                                    pc += 2;
+                            }
                         }
                         break;
                     case 0xA1:
                         if (disFlag) printf("SKNP V%x", regX);
                         else
                         {
+                            // check what key is pressed
+                            timeout(0);
+                            int c = getch();
+                            //map to hexadecimal keypad
+                            unsigned char hdkey = convertKey(c);
+
+                            // compare reg[vx] to keypad
+                            if (regXY[regX] != hdkey)
+                                pc += 2;
                         }
                         break;
                     default:
                         if (disFlag) printf("not supported");
-                        else
-                        {
-                        }
                         break;
                 }
                 break;
@@ -350,54 +370,81 @@ void execute(char* rom_in, int disFlag)
                         if (disFlag) printf("LD V%x, DT", regX);
                         else
                         {
+                            regXY[regX] = delayTimer;
                         }
                         break;
                     case 0x0A:
                         if (disFlag) printf("LD V%x, K", regX);
                         else
                         {
+                            timeout(-1);
+                            int c = getch();
+                            unsigned char hdkey = convertKey(c);
+                            regXY[regX] = hdkey;
                         }
                         break;
                     case 0x15:
                         if (disFlag) printf("LD DT, V%x", regX);
                         else
                         {
+                            delayTimer = regXY[regX];
                         }
                         break;
                     case 0x18:
                         if (disFlag) printf("LD ST, V%x", regX);
                         else
                         {
+                            soundTimer = regXY[regX];
                         }
                         break;
                     case 0x1E:
                         if (disFlag) printf("ADD I, V%x", regX);
                         else
                         {
+                            regI += regXY[regX];
                         }
                         break;
                     case 0x29:
                         if (disFlag) printf("LD F, V%x", regX);
                         else
                         {
+                            regI = 0x50 + regXY[regX] * 5;
                         }
                         break;
                     case 0x33:
                         if (disFlag) printf("LD B, V%x", regX);
                         else
                         {
+                            unsigned char num = regXY[regX];
+                            // store 100s
+                            unsigned char huns = num / 100;
+                            ram[regI] = huns;
+                            // store 10s
+                            unsigned char tens = (num - (huns*100)) / 10;
+                            ram[regI+1] = tens;
+                            // store 1s
+                            unsigned char ones = (num - ((huns*100)+(tens*10)));
+                            ram[regI+2] = ones;
                         }
                         break;
                     case 0x55:
                         if (disFlag) printf("LD [I], V%x", regX);
                         else
                         {
+                            for (int i = 0; i <= regX; i++)
+                            {
+                                ram[regI+i] = regXY[i];
+                            }
                         }
                         break;
                     case 0x65:
                         if (disFlag) printf("LD V%x, [I]", regX);
                         else
                         {
+                            for (int i = 0; i <= regX; i++)
+                            {
+                                regXY[i] = ram[regI+i];
+                            }
                         }
                         break;
                     default:
@@ -482,4 +529,64 @@ void initializeFont(unsigned char* ram_out)
             ram_out[ram_index++] = font[i][j];
         }
     }    
+}
+
+unsigned char convertKey(int keyIn)
+{
+    unsigned char keyOut; 
+    switch (keyIn)
+    {
+        case '1':
+            keyOut = 1;
+            break;
+        case '2':
+            keyOut = 2;
+            break;
+        case '3':
+            keyOut = 3;
+            break;
+        case '4':
+            keyOut = 0xc;
+            break;
+        case 'q':
+            keyOut = 4;
+            break;
+        case 'w':
+            keyOut = 5;
+            break;
+        case 'e':
+            keyOut = 6;
+            break;
+        case 'r':
+            keyOut = 0xd;
+            break;
+        case 'a':
+            keyOut = 7;
+            break;
+        case 's':
+            keyOut = 8;
+            break;
+        case 'd':
+            keyOut = 9;
+            break;
+        case 'f':
+            keyOut = 0xe;
+            break;
+        case 'z':
+            keyOut = 0xa;
+            break;
+        case 'x':
+            keyOut = 0;
+            break;
+        case 'c':
+            keyOut = 0xb;
+            break;
+        case 'v':
+            keyOut = 0xf;
+            break;
+        default:
+            keyOut = 0xff;
+            break;
+    }
+    return keyOut;
 }
