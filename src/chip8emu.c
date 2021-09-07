@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <ncurses.h>
+#include <stdlib.h>
+#include <time.h>
 
 #define MEM_SIZE 4096
 #define START_ADDR 0x200
@@ -60,7 +62,7 @@ void execute(char* rom_in, int disFlag)
     initializeFont(ram);
 
     // fetch/decode/execute
-    for (pc = START_ADDR; pc < rom_size+START_ADDR; pc=pc+2)
+    for (pc = START_ADDR; pc < rom_size+START_ADDR; pc+=2)
     {
         unsigned short inst = (((unsigned short)ram[pc]) << 8) | ((unsigned short)ram[pc+1]);
 
@@ -90,6 +92,7 @@ void execute(char* rom_in, int disFlag)
                         if (disFlag) printf("RET");
                         else
                         {
+                            pc = stack[stackPointer--] -2; // because auto increment
                         }
                         break;
 
@@ -110,24 +113,35 @@ void execute(char* rom_in, int disFlag)
                 if (disFlag) printf("CALL %03x", valNNN);
                 else
                 {
+                    stack[++stackPointer] = pc + 2;
+                    pc = valNNN - 2; // compensate auto increment
                 }
                 break;
             case 0x3:
                 if (disFlag) printf("SE V%x, %02x", regX, valNN);
                 else
                 {
+                    
+                    //printf("%x == %x: %x\n", regXY[regX], valNN, regXY[regX]== valNN);
+                    //getch();
+                    if (regXY[regX] == valNN)
+                        pc += 2;
                 }
                 break;
             case 0x4:
                 if (disFlag) printf("SNE V%x, %02x", regX, valNN);
                 else
                 {
+                    if (regXY[regX] != (unsigned char) valNN)
+                        pc += 2;
                 }
                 break;
             case 0x5:
                 if (disFlag) printf("SE V%x, V%x", regX, regY);
                 else
                 {
+                    if (regXY[regX] == regXY[regY])
+                        pc+=2;
                 }
                 break;
             case 0x6:
@@ -151,54 +165,77 @@ void execute(char* rom_in, int disFlag)
                         if (disFlag) printf("LD V%x, V%x", regX, regY);
                         else
                         {
+                            regXY[regX] = regXY[regY];
                         }
                         break;
                     case 0x1:
                         if (disFlag) printf("OR V%x, V%x", regX, regY);
                         else
                         {
+                            regXY[regX] |= regXY[regY];
                         }
                         break;
                     case 0x2:
                         if (disFlag) printf("AND V%x, V%x", regX, regY);
                         else
                         {
+                            regXY[regX] &= regXY[regY];
                         }
                         break;
                     case 0x3:
                         if (disFlag) printf("XOR V%x, V%x", regX, regY);
                         else
                         {
+                            regXY[regX] ^= regXY[regY];
                         }
                         break;
                     case 0x4:
                         if (disFlag) printf("ADD V%x, V%x", regX, regY);
                         else
                         {
+                            unsigned short temp = (unsigned short) regXY[regX] + (unsigned short) regXY[regY];
+                            // check carry
+                            regXY[0xF] = ((temp >> 8) > 0);
+
+                            regXY[regX] = (unsigned char) (temp & 0xFF);
                         }
                         break;
                     case 0x5:
                         if (disFlag) printf("SUB V%x, V%x", regX, regY);
                         else
                         {
+                            regXY[0xF] = (regXY[regX] > regXY[regY]);
+                            regXY[regX] -= regXY[regY];
                         }
                         break;
                     case 0x6:
                         if (disFlag) printf("SHR V%x {, V%x}", regX, regY);
                         else
                         {
+                            // implementing to ignore loading regY
+                            
+                            // check carry
+                            regXY[0xF] = regXY[regX] & 0x01;
+                            regXY[regX] >>= 1;
                         }
                         break;
                     case 0x7:
                         if (disFlag) printf("SUBN V%x, V%x", regX, regY);
                         else
                         {
+                            regXY[0xF] = (regXY[regY] > regXY[regX]);
+                            regXY[regX] = regXY[regY] - regXY[regX];
                         }
                         break;
                     case 0xE:
                         if (disFlag) printf("SHL V%x {, V%x}", regX, regY);
                         else
                         {
+                            //implementing to ignore loading regY
+
+                            // check carry
+                            regXY[0xF] = (regXY[regX] & 0x80) >> 7;
+                            regXY[regX] <<= 1;
                         }
                         break;
                     default:
@@ -209,6 +246,8 @@ void execute(char* rom_in, int disFlag)
                 if (disFlag) printf("SNE V%x, V%x", regX, regY);
                 else
                 {
+                    if (regXY[regX] != regXY[regY])
+                        pc += 2;
                 }
                 break;
             case 0xA:
@@ -222,12 +261,17 @@ void execute(char* rom_in, int disFlag)
                 if (disFlag) printf("JP V0, %03x", valNNN);
                 else
                 {
+                    pc = valNNN + regXY[0] - 2; //compensate for autoinc
                 }
                 break;
             case 0xC:
                 if (disFlag) printf("RND V%x, %02x", regX, valNN);
                 else
                 {
+                    time_t t;
+                    srand((unsigned)time(&t));
+                    unsigned char random = (unsigned char)(rand() % 0xFF);
+                    regXY[regX] = random & valNN;
                 }
                 break;
             case 0xD:
@@ -264,6 +308,7 @@ void execute(char* rom_in, int disFlag)
                         y++;
                         if (y > 32) break;
                     }
+                    clear();
                     for (short row=0; row < 32; row++)
                     {
                         for (short col=0; col < 64; col++)
@@ -369,6 +414,8 @@ void execute(char* rom_in, int disFlag)
         {
             // wait to emulate processing speed
             napms(2);
+            //getch();
+            //printf("\n");
         }
     }
     endwin();
