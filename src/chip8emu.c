@@ -46,6 +46,7 @@ void execute(char* rom_in, int disFlag)
     char display[64][32];
     memset(display, 1, sizeof(display));
     if (!disFlag) initscr();
+    if (!disFlag) curs_set(0);
 
     // initialize ram
     unsigned char ram[MEM_SIZE];
@@ -80,6 +81,8 @@ void execute(char* rom_in, int disFlag)
                         if (disFlag) printf("CLS");
                         else
                         {
+                            memset(display, 0, sizeof(display));
+                            clear();
                         }
                         break;
 
@@ -100,6 +103,7 @@ void execute(char* rom_in, int disFlag)
                 if (disFlag) printf("JP %03x", valNNN);
                 else
                 {
+                    pc = valNNN - 2; // loop will auto increment by 2 so offset
                 }
                 break;
             case 0x2:
@@ -130,12 +134,14 @@ void execute(char* rom_in, int disFlag)
                 if (disFlag) printf("LD V%x, %02x", regX, valNN);
                 else
                 {
+                    regXY[regX] = valNN;
                 }
                 break;
             case 0x7:
                 if (disFlag) printf("ADD V%x, %02x", regX, valNN);
                 else
                 {
+                    regXY[regX] += valNN;
                 }
                 break;
             case 0x8:
@@ -209,6 +215,7 @@ void execute(char* rom_in, int disFlag)
                 if (disFlag) printf("LD I, %03x", valNNN);
                 else
                 {
+                    regI = valNNN;
                 }
                 break;
             case 0xB:
@@ -228,36 +235,44 @@ void execute(char* rom_in, int disFlag)
                 else
                 {
                     // get x value from reg[regX] % 64
+                    unsigned char x = regXY[regX] % 64;
                     // get y value from reg[regY] % 32
+                    unsigned char y = regXY[regY] % 32;
                     // reg[VF]=0
+                    regXY[0xF] = 0;
                     // for i in valN rows
-                    //     get mem[reg[I]+i] byte
-                    //         for bit in byte
-                    //             if x > MAX_X break;
-                    //             if bit == 1 && pixel(x,y) == 1
-                    //                 pixel(x,y) = 0
-                    //                 reg[VF] = 1
-                    //             else if bit == 1 && pixel(x,y) == 0
-                    //                 pixel(x,y) = 1
-                    //             x++;
-                    //             if x > MAX_X break;
-                    //         y++
-                    //         if y > MAX_Y break;
-                    //
-                    clear();
+                    for (int i = 0; i < valN; i++)
+                    {
+                        unsigned char byte = ram[regI+i];
+                        // for bit in byte
+                        for (int j = 0; j < 8; j++)
+                        {
+                            unsigned char bit = (byte >> (7-j)) & 0x01;
+                            if (bit == 1 && display[x][y] == 1)
+                            {
+                                display[x][y] = 0;
+                                regXY[0xF] = 1;
+                            }
+                            else if (bit == 1 && display[x][y] == 0)
+                            {
+                                display[x][y] = 1;
+                            }
+                            x++;
+                            if (x > 64) break;
+                        }
+                        x = regXY[regX] % 64;
+                        y++;
+                        if (y > 32) break;
+                    }
                     for (short row=0; row < 32; row++)
                     {
                         for (short col=0; col < 64; col++)
                         {
                             if (display[col][row])
-                                mvaddch(row, col, '#');
-                                //printf("#");
+                                mvaddch(row, col, ACS_CKBOARD);
                         }
-                        //printf("\n");
                     }
                     refresh();
-                    napms(500);
-                    memset(display, 0, sizeof(display));
                 }
                 break;
             case 0xE:
@@ -350,6 +365,11 @@ void execute(char* rom_in, int disFlag)
                 break;
         }
         if (disFlag) printf("\n");
+        else
+        {
+            // wait to emulate processing speed
+            napms(2);
+        }
     }
     endwin();
 }
