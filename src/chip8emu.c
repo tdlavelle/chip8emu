@@ -49,7 +49,7 @@ void execute(char* rom_in, int disFlag)
 
     // initialize display
     char display[64][32];
-    memset(display, 1, sizeof(display));
+    memset(display, 0, sizeof(display));
     if (!disFlag) initscr();
     if (!disFlag) curs_set(0);
     if (!disFlag) noecho();
