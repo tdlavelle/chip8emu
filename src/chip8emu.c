@@ -96,7 +96,7 @@ void execute(char* rom_in, int disFlag)
                         if (disFlag) printf("RET");
                         else
                         {
-                            pc = stack[stackPointer--] -2; // because auto increment
+                            pc = stack[--stackPointer] -2; // because auto increment
                         }
                         break;
 
@@ -117,7 +117,7 @@ void execute(char* rom_in, int disFlag)
                 if (disFlag) printf("CALL %03x", valNNN);
                 else
                 {
-                    stack[++stackPointer] = pc + 2;
+                    stack[stackPointer++] = pc + 2;
                     pc = valNNN - 2; // compensate auto increment
                 }
                 break;
